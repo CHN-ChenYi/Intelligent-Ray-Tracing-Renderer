@@ -5,7 +5,7 @@
 
 struct Vector {
   double x, y, z;
-  Vector(const double _x = 0., const double _y = 0., const double _z = 0.) {
+  Vector(const double &_x = 0., const double &_y = 0., const double &_z = 0.) {
     x = _x;
     y = _y;
     z = _z;
@@ -28,6 +28,14 @@ struct Vector {
   Vector &normalize() {
     *this = *this * (1. / sqrt(x * x + y * y + z * z));
     return *this;
+  }
+};
+
+struct Ray {
+  Vector ori, dst;
+  Ray(const Vector &_ori, const Vector &_dst) {
+    ori = _ori;
+    dst = _dst;
   }
 };
 
