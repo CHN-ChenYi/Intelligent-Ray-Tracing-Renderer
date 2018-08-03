@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 struct Vector {
   double x, y, z;
@@ -76,6 +77,31 @@ struct Sphere {
 };
 
 int main(int argc, char *argv[]) {
-
+  int w = 1024, h = 768;
+  double lens = .5135;
+  int samp_num = 10;
+  double f = 5.6;
+  for (int i = 1; i < argc; i++) {
+    switch (argv[i][1]) {
+      case 's': {
+        w = atoi(argv[++i]);
+        h = atoi(argv[++i]);
+        break;
+      }
+      case 'l': {
+        lens = atof(argv[++i]);
+        break;
+      }
+      case 'n': {
+        samp_num = atoi(argv[++i]) / 4;
+        break;
+      }
+      case 'f': {
+        f = atof(argv[++i]);
+        break;
+      }
+    }
+  }
+  
   return 0;
 }
