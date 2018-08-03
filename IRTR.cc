@@ -76,6 +76,19 @@ struct Sphere {
   }
 };
 
+// Scene Settings
+const Sphere spheres[] = {
+  Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(),
+         Vector(.75, .25, .25), Specular)
+};
+const Ray camera(Vector(50, 52, 295.6),
+                 Vector(0, -0.042612, -1).normalize());
+//
+
+Vector Radiance(const Ray &r, int depth, unsigned short *Xi) {
+
+}
+
 int main(int argc, char *argv[]) {
   int w = 1024, h = 768;
   double lens = .5135;
