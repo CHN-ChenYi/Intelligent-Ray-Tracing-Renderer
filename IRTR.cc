@@ -85,6 +85,17 @@ const Ray camera(Vector(50, 52, 295.6),
                  Vector(0, -0.042612, -1).normalize());
 //
 
+inline double clamp(double x) {
+  if (x < 0)
+    return 0;
+  if (x > 1)
+    return 1;
+  return x;
+}
+inline int toInt(double x) {
+  return int(pow(clamp(x), 1 / 2.2) * 255 + .5);
+}
+
 Vector Radiance(const Ray &r, int depth, unsigned short *Xi) {
 
 }
@@ -94,6 +105,7 @@ int main(int argc, char *argv[]) {
   double lens = .5135;
   int samp_num = 10;
   double f = 5.6;
+  FILE *file;
   for (int i = 1; i < argc; i++) {
     switch (argv[i][1]) {
       case 's': {
@@ -113,8 +125,39 @@ int main(int argc, char *argv[]) {
         f = atof(argv[++i]);
         break;
       }
+      case 'o': {
+        file = fopen(argv[++i], "w");
+      }
     }
   }
-  
+  Vector colour;
+  Vector *map = new Vector[w * h];
+  Vector cx = Vector(w * lens / h);
+  Vector cy = (cx * camera.dir).normalize() * lens;
+  #pragma omp parallel for schedule(dynamic, 1) private(colour)
+    for (int y = 0; y < h; y++) {
+    fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num,
+            100. * y / (h - 1));
+    for (unsigned short x = 0, Xi[3] = {0, 0, (unsigned short)(y * y * y)}; x < w; x++) {
+      for (int sy = 0, id = (h - y - 1) * w + x; sy < 2; sy++)
+        for (int sx = 0; sx < 2; sx++, colour = Vector()) {
+          for (int s = 0; s < samp_num; s++) {
+            double r1 = 2 * erand48(Xi);
+            double dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+            double r2 = 2 * erand48(Xi);
+            double dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+            Vector d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
+                       cy * (((sy + .5 + dy) / 2 + y) / h - .5) + camera.dir;
+            colour = colour + Radiance(Ray(camera.ori + d * 140, d.normalize()), 0, Xi)
+                     * (1. / samp_num);
+          }
+          map[id] = map[id] + Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z)) * .25;
+        }
+      }
+    }
+
+  fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
+  for (int i = 0; i < w * h; i++)
+    fprintf(file, "%d %d %d ", toInt(map[i].x), toInt(map[i].y), toInt(map[i].z));
   return 0;
 }
