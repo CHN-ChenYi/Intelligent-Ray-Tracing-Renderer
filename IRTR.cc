@@ -1,4 +1,4 @@
-//Make : g++ IRTR.cc -o IRTR -O3 -fopenmp
+//Make : g++ IRTR.cc -o IRTR -O3 -fopenmp -fpermissive
 
 #include <cmath>
 #include <cstdio>
@@ -28,6 +28,9 @@ struct Vector {
   }
   double operator/(const Vector &rhs) const { // dot
     return x * rhs.x + y * rhs.y + z * rhs.z;
+  }
+  Vector operator%(const Vector &rhs) const { // multiple
+    return Vector(x * rhs.x, y * rhs.y, z * rhs.z);
   }
   Vector &normalize() {
     *this = *this * (1. / sqrt(x * x + y * y + z * z));
@@ -81,11 +84,9 @@ struct Sphere {
 
 // Scene Settings
 const Sphere spheres[] = {
-  Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(),
-         Vector(.75, .25, .25), Specular)
+  Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Specular)
 };
-const Ray camera(Vector(50, 52, 295.6),
-                 Vector(0, -0.042612, -1).normalize());
+const Ray camera(Vector(50, 52, 295.6), Vector(0, -0.042612, -1).normalize());
 //
 
 inline double clamp(double x) {
@@ -123,17 +124,30 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
   }
   if (dis < 0)
     dis = t;
-  const Sphere &obj = spheres[id];  // the hit object
+  const Sphere &obj = spheres[id]; // the hit object
   Vector col = obj.c;
-  Vector point = r.ori + r.dir * t;  // intersect point
-  Vector n = (point - obj.p).normalize();  // normal
-  Vector o_n = n / r.dir < 0 ? n : n * -1, f = obj.c;  // orinted normal
-  double p = std::max(col.x, std::max(col.y, col.z));  // max reflection
-  if (++depth > 5) {  // Russian Roulette
+  Vector point = r.ori + r.dir * t; // intersect point
+  Vector n = (point - obj.p).normalize(); // normal
+  Vector o_n = n / r.dir < 0 ? n : n * -1; // orinted normal
+  double p = std::max(col.x, std::max(col.y, col.z)); // max reflection
+  if (++depth > 5) { // Russian Roulette
     if (erand48(Xi) < p)
-      f = f * (1 / p);
+      col = col * (1 / p);
     else
       return obj.e;
+  }
+  switch (obj.t) {
+    case Specular:
+      return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi, dis);
+    case Diffuse:
+      const double ang_ = 2 * M_PI * erand48(Xi); // random angle
+      const double dis_ = erand48(Xi), dis_i_ = sqrt(dis_); // random distance
+      const Vector u = ((fabs(o_n.x) > .1 ? Vector(0, 1) : Vector(1)) * o_n).normalize(); // u $\perp$ o_n
+      const Vector v = o_n * u; // v $\perp$ u && v $\perp$ o_n
+      const Vector dir = (u * cos(ang_) * dis_i_ + v * sin(ang_) * dis_i_ + o_n * sqrt(1 - dis_)).normalize();
+      return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis);
+    case Glass:
+      ;
   }
 }
 
