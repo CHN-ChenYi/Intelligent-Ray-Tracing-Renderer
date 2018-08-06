@@ -97,7 +97,7 @@ inline double clamp(double x) {
   return x;
 }
 inline int toInt(double x) {
-  return int(pow(clamp(x), 1 / 2.2) * 255 + .5);
+  return int(pow(clamp(x), 1 / 2.2) * 255 + .5); // Gamma Correction
 }
 
 int Intersect(const Ray &r, double &t) {
@@ -147,7 +147,22 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
       const Vector dir = (u * cos(ang_) * dis_i_ + v * sin(ang_) * dis_i_ + o_n * sqrt(1 - dis_)).normalize();
       return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis);
     case Glass:
-      ;
+      const bool in  = n / r.dir > 0;
+      const Ray refl_ray(point, r.dir - n * 2 * (n / r.dir));
+      const double n_air = 1, n_obj = 1.5, n_relative = in ? n_air / n_obj : n_obj / n_air;
+      const double d_d_n = r.dir / o_n;
+      const double cos_2t = 1 - pow(n_relative, 2) * (1 - pow(d_d_n, 2));
+      if (cos_2t < 0) { // total internal reflection
+        return obj.e + col % Radiance(refl_ray, depth, Xi, dis);
+      } else {
+        const Vector t_dir = (r.dir * n_relative - n * (in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t)));
+        double a = n_obj - n_air, b = n_obj + n_air, R0 = a * a / (b * b), c = 1 - (in ? -d_d_n : t_dir / n);
+        double Re = R0 + (1 - R0) * pow(c, 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
+        return obj.e + col % (depth > 2 ?
+                              (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi, dis) * RP
+                                                 : Radiance(Ray(point, t_dir), depth, Xi, dis) * TP)
+                              : Radiance(refl_ray, depth, Xi, dis) * Re + Radiance(Ray(point, t_dir), depth, Xi, dis) * Tr);
+      }
   }
 }
 
