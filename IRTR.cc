@@ -84,7 +84,15 @@ struct Sphere {
 
 // Scene Settings
 const Sphere spheres[] = {
-  Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Specular)
+  Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
+  Sphere(1e5, Vector(-1e5 + 99, 40.8, 81.6), Vector(), Vector(.25, .25, .75), Diffuse), // Rght
+  Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
+  Sphere(1e5, Vector(50, 40.8, -1e5 + 170), Vector(), Vector(), Diffuse), // Frnt
+  Sphere(1e5, Vector(50, 1e5, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Botm
+  Sphere(1e5, Vector(50, -1e5 + 81.6, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Top
+  Sphere(16.5, Vector(27, 16.5, 47), Vector(), Vector(1, 1, 1) * .999, Specular), // Mirr
+  Sphere(16.5, Vector(73, 16.5, 78), Vector(), Vector(1, 1, 1) * .999, Glass), // Glas
+  Sphere(600, Vector(50, 681.6 - .27, 81.6), Vector(12, 12, 12), Vector(), Diffuse) // Lite
 };
 const Ray camera(Vector(50, 52, 295.6), Vector(0, -0.042612, -1).normalize());
 //
@@ -171,7 +179,7 @@ int main(int argc, char *argv[]) {
   double lens = .5135;
   int samp_num = 10;
   double f = 5.6;
-  FILE *file;
+  FILE *file = fopen("image.ppm", "w");
   for (int i = 1; i < argc; i++) {
     switch (argv[i][1]) {
       case 's': {
