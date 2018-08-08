@@ -64,11 +64,11 @@ struct Sphere {
     t = _refl_type;
   }
   double Intersect(const Ray &ray) const { // returns distance, inf if nohit
-    const Vector o_minus_p = ray.ori - p;
+    const Vector po = ray.ori - p;
     const double a = ray.dir / ray.dir;
-    const double b = ray.dir / o_minus_p * 2;
-    const double c = o_minus_p / o_minus_p - r;
-    double delta = b * b - a * c * 4;
+    const double b = ray.dir / po * 2;
+    const double c = po / po - pow(r, 2);
+    double delta = pow(b, 2) - a * c * 4;
     if (delta < 0)
       return inf;
     delta = sqrt(delta);
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
   double *depths = new double[w * h];
   Vector cx = Vector(w * lens / h);
   Vector cy = (cx * camera.dir).normalize() * lens;
-  #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
+  // #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
     for (int y = 0; y < h; y++) {
       fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num,
               100. * y / (h - 1));

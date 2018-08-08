@@ -7,5 +7,8 @@ A project of Ying Cai Ji Hua (Based on smallpt)
 
 - [x] 完成主体
 - [ ] 测试
-- [ ] 光圈模拟
+- [ ] 烟雾
+- [ ] 测试
+- [ ] 光圈
+- [ ] 测试
 - [ ] 取消场景硬编码
