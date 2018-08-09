@@ -144,18 +144,17 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
     else
       return obj.e;
   }
-  switch (obj.t) {
-    case Specular:
+  if (obj.t == Specular) {
       return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi, dis);
-    case Diffuse:
+  } else if (obj.t == Diffuse) {
       const double ang_ = 2 * M_PI * erand48(Xi); // random angle
       const double dis_ = erand48(Xi), dis_i_ = sqrt(dis_); // random distance
       const Vector u = ((fabs(o_n.x) > .1 ? Vector(0, 1) : Vector(1)) * o_n).normalize(); // u $\perp$ o_n
       const Vector v = o_n * u; // v $\perp$ u && v $\perp$ o_n
       const Vector dir = (u * cos(ang_) * dis_i_ + v * sin(ang_) * dis_i_ + o_n * sqrt(1 - dis_)).normalize();
       return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis);
-    case Glass:
-      const bool in  = n / r.dir > 0;
+  } else if (obj.t == Glass) {
+      const bool in  = n / r.dir < 0;
       const Ray refl_ray(point, r.dir - n * 2 * (n / r.dir));
       const double n_air = 1, n_obj = 1.5, n_relative = in ? n_air / n_obj : n_obj / n_air;
       const double d_d_n = r.dir / o_n;
@@ -163,8 +162,8 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
       if (cos_2t < 0) { // total internal reflection
         return obj.e + col % Radiance(refl_ray, depth, Xi, dis);
       } else {
-        const Vector t_dir = (r.dir * n_relative - n * (in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t)));
-        double a = n_obj - n_air, b = n_obj + n_air, R0 = a * a / (b * b), c = 1 - (in ? -d_d_n : t_dir / n);
+        const Vector t_dir = (r.dir * n_relative - n * (in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t))).normalize();
+        double a = n_obj - n_air, b = n_obj + n_air, R0 = pow(a, 2) / pow(b, 2), c = 1 - (in ? -d_d_n : t_dir / n);
         double Re = R0 + (1 - R0) * pow(c, 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
         return obj.e + col % (depth > 2 ?
                               (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi, dis) * RP
@@ -210,7 +209,7 @@ int main(int argc, char *argv[]) {
   double *depths = new double[w * h];
   Vector cx = Vector(w * lens / h);
   Vector cy = (cx * camera.dir).normalize() * lens;
-  // #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
+  #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
     for (int y = 0; y < h; y++) {
       fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num,
               100. * y / (h - 1));
