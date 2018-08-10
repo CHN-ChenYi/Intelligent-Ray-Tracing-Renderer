@@ -89,7 +89,9 @@ namespace Arguments {
   double f = 5.6;
   FILE *file = fopen("image.ppm", "w");
 
-  const Vector frog(0, 0, 0);
+  bool frog = true;
+  double rho = 0.007;
+  const Vector frog_c(0.7, 0.7, 0.7); // Colour of frog
   const Ray camera(Vector(50, 52, 295.6), Vector(0, -0.042612, -1).normalize());
   const Sphere spheres[] = {
     Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
@@ -133,7 +135,7 @@ namespace Arguments {
 using namespace Arguments;
 
 double f_atmo(double dis) {
-  return exp(-pow(0.01 * dis, 2));
+  return exp(-pow(rho * dis, 2));
 }
 inline double clamp(double x) {
   if (x < 0)
@@ -176,6 +178,7 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
   Vector n = (point - obj.p).normalize(); // normal
   Vector o_n = n / r.dir < 0 ? n : n * -1; // orinted normal
   double p = std::max(col.x, std::max(col.y, col.z)); // max reflection
+  const bool in  = n / r.dir < 0;
   if (++depth > 5) { // Russian Roulette
     if (erand48(Xi) < p)
       col = col * (1 / p);
@@ -183,6 +186,10 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
       return obj.e;
   }
   if (obj.t == Specular) {
+    if (frog) {
+      const double p_frog = f_atmo(t);
+      return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi, dis) * p_frog + frog_c * (1 - p_frog);
+    }
     return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi, dis);
   } else if (obj.t == Diffuse) {
     const double ang_ = 2 * M_PI * erand48(Xi); // random angle
@@ -190,23 +197,35 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
     const Vector u = ((fabs(o_n.x) > .1 ? Vector(0, 1) : Vector(1)) * o_n).normalize(); // u $\perp$ o_n
     const Vector v = o_n * u; // v $\perp$ u && v $\perp$ o_n
     const Vector dir = (u * cos(ang_) * dis_i_ + v * sin(ang_) * dis_i_ + o_n * sqrt(1 - dis_)).normalize();
+    if (frog) {
+      const double p_frog = f_atmo(t);
+      return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis) * p_frog + frog_c * (1 - p_frog);
+    }
     return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis);
   } else if (obj.t == Glass) {
-    const bool in  = n / r.dir < 0;
     const Ray refl_ray(point, r.dir - n * 2 * (n / r.dir));
     const double n_air = 1, n_obj = 1.5, n_relative = in ? n_air / n_obj : n_obj / n_air;
     const double d_d_n = r.dir / o_n;
     const double cos_2t = 1 - pow(n_relative, 2) * (1 - pow(d_d_n, 2));
     if (cos_2t < 0) { // total internal reflection
+      if (frog && in) {
+        const double p_frog = f_atmo(t);
+        return obj.e + col % Radiance(refl_ray, depth, Xi, dis) * p_frog + frog_c * (1 - p_frog);
+      }
       return obj.e + col % Radiance(refl_ray, depth, Xi, dis);
     } else {
       const Vector t_dir = (r.dir * n_relative - n * (in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t))).normalize();
       double a = n_obj - n_air, b = n_obj + n_air, R0 = pow(a, 2) / pow(b, 2), c = 1 - (in ? -d_d_n : t_dir / n);
       double Re = R0 + (1 - R0) * pow(c, 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
-      return obj.e + col % (depth > 2 ?
-                            (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi, dis) * RP
-                                                : Radiance(Ray(point, t_dir), depth, Xi, dis) * TP)
-                            : Radiance(refl_ray, depth, Xi, dis) * Re + Radiance(Ray(point, t_dir), depth, Xi, dis) * Tr);
+      const Vector radiance = (depth > 2 ?
+                               (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi, dis) * RP
+                                                  : Radiance(Ray(point, t_dir), depth, Xi, dis) * TP)
+                               : Radiance(refl_ray, depth, Xi, dis) * Re + Radiance(Ray(point, t_dir), depth, Xi, dis) * Tr);
+      if (frog && in) {
+        const double p_frog = f_atmo(t);
+        return obj.e + col % radiance * p_frog + frog_c * (1 - p_frog);
+      }
+      return obj.e + col % radiance;
     }
   }
 }
