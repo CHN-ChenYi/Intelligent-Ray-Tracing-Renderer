@@ -1,7 +1,9 @@
-//Make : g++ IRTR.cc -o IRTR -O3 -fopenmp -fpermissive
+//Make : g++ IRTR.cc -o IRTR -O3 -fopenmp
 
+#include <map>
 #include <cmath>
 #include <cstdio>
+#include <cassert>
 #include <cstdlib>
 #include <algorithm>
 
@@ -84,45 +86,55 @@ struct Sphere {
 
 namespace Arguments {
   int w = 1024, h = 768;
-  double lens = .5135;
+  double angle = .5135;
   int samp_num = 10;
-  double f = 5.6;
+  int dof = 10 / 2, l = 30, k = 0.7;
   FILE *file = fopen("image.ppm", "w");
 
-  bool frog = true;
+  bool frog = false;
   double rho = 0.007;
   const Vector frog_c(0.7, 0.7, 0.7); // Colour of frog
   const Ray camera(Vector(50, 52, 295.6), Vector(0, -0.042612, -1).normalize());
+  Vector tc(0.0588, 0.361, 0.0941);
+  Vector sc = Vector(1,1,1)*.7;
   const Sphere spheres[] = {
-    Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
-    Sphere(1e5, Vector(-1e5 + 99, 40.8, 81.6), Vector(), Vector(.25, .25, .75), Diffuse), // Rght
-    Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
-    Sphere(1e5, Vector(50, 40.8, -1e5 + 170), Vector(), Vector(), Diffuse), // Frnt
-    Sphere(1e5, Vector(50, 1e5, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Botm
-    Sphere(1e5, Vector(50, -1e5 + 81.6, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Top
-    Sphere(16.5, Vector(27, 16.5, 47), Vector(), Vector(1, 1, 1) * .999, Specular), // Mirr
-    Sphere(16.5, Vector(73, 16.5, 78), Vector(), Vector(1, 1, 1) * .999, Glass), // Glas
-    Sphere(600, Vector(50, 681.6 - .27, 81.6), Vector(12, 12, 12), Vector(), Diffuse) // Lite
+    // center 50 40.8 62
+    // floor 0
+    // back  0
+    Sphere(1e5, Vector(50, 1e5+130, 0),  Vector(1,1,1)*1.3,Vector(),Diffuse), //lite
+    Sphere(1e2, Vector(50, -1e2+2, 47),  Vector(),Vector(1,1,1)*.7,Diffuse), //grnd
+
+    Sphere(1e4, Vector(50, -30, 300)+Vector(-sin(50*M_PI/180),0,cos(50*M_PI/180))*1e4, Vector(), Vector(1,1,1)*.99,Specular),// mirr L
+    Sphere(1e4, Vector(50, -30, 300)+Vector(sin(50*M_PI/180),0,cos(50*M_PI/180))*1e4,  Vector(), Vector(1,1,1)*.99,Specular),// mirr R
+    Sphere(1e4, Vector(50, -30, -50)+Vector(-sin(30*M_PI/180),0,-cos(30*M_PI/180))*1e4,Vector(), Vector(1,1,1)*.99,Specular),// mirr FL
+    Sphere(1e4, Vector(50, -30, -50)+Vector(sin(30*M_PI/180),0,-cos(30*M_PI/180))*1e4, Vector(), Vector(1,1,1)*.99,Specular),// mirr
+
+
+    Sphere(4, Vector(50,6*.6,47),   Vector(),Vector(.13,.066,.033), Diffuse),//"tree"
+    Sphere(16,Vector(50,6*2+16*.6,47),   Vector(), tc,  Diffuse),//"tree"
+    Sphere(11,Vector(50,6*2+16*.6*2+11*.6,47),   Vector(), tc,  Diffuse),//"tree"
+    Sphere(7, Vector(50,6*2+16*.6*2+11*.6*2+7*.6,47),   Vector(), tc,  Diffuse),//"tree"
+
+    Sphere(15.5,Vector(50,1.8+6*2+16*.6,47),   Vector(), sc,  Diffuse),//"tree"
+    Sphere(10.5,Vector(50,1.8+6*2+16*.6*2+11*.6,47),   Vector(), sc,  Diffuse),//"tree"
+    Sphere(6.5, Vector(50,1.8+6*2+16*.6*2+11*.6*2+7*.6,47),   Vector(), sc,  Diffuse),//"tree"
+
+    // Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
+    // Sphere(1e5, Vector(-1e5 + 99, 40.8, 81.6), Vector(), Vector(.25, .25, .75), Diffuse), // Rght
+    // Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
+    // Sphere(1e5, Vector(50, 40.8, -1e5 + 170), Vector(), Vector(), Diffuse), // Frnt
+    // Sphere(1e5, Vector(50, 1e5, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Botm
+    // Sphere(1e5, Vector(50, -1e5 + 81.6, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Top
+    // Sphere(16.5, Vector(27, 16.5, 47), Vector(), Vector(1, 1, 1) * .999, Specular), // Mirr
+    // Sphere(16.5, Vector(73, 16.5, 78), Vector(), Vector(1, 1, 1) * .999, Glass), // Glas
+    // Sphere(600, Vector(50, 681.6 - .27, 81.6), Vector(12, 12, 12), Vector(), Diffuse) // Lite
   };
 
   void Decode(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
       switch (argv[i][1]) {
-        case 's': {
-          w = atoi(argv[++i]);
-          h = atoi(argv[++i]);
-          break;
-        }
-        case 'l': {
-          lens = atof(argv[++i]);
-          break;
-        }
         case 'n': {
           samp_num = atoi(argv[++i]) / 4;
-          break;
-        }
-        case 'f': {
-          f = atof(argv[++i]);
           break;
         }
         case 'o': {
@@ -134,17 +146,24 @@ namespace Arguments {
 };
 using namespace Arguments;
 
-double f_atmo(double dis) {
+inline double f_atmo(const double &dis) {
   return exp(-pow(rho * dis, 2));
 }
-inline double clamp(double x) {
+inline double clamp(const double &x) {
   if (x < 0)
     return 0;
   if (x > 1)
     return 1;
   return x;
 }
-inline int Gamma(double x) {
+inline int GetRadius(const double &dis) {
+  if (dis < l - dof)
+    return (dof - l - dis) * k;
+  else if (dis <= l + dof)
+    return 0;
+  return (dis - l - dof) * k;
+}
+inline int Gamma(const double &x) {
   return int(pow(clamp(x), 1 / 2.2) * 255 + .5); // Gamma Correction
 }
 
@@ -236,14 +255,19 @@ int main(int argc, char *argv[]) {
   Vector colour;
   Vector *map = new Vector[w * h];
   double *depths = new double[w * h];
-  Vector cx = Vector(w * lens / h);
-  Vector cy = (cx * camera.dir).normalize() * lens;
-  #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
+  Vector *image = new Vector[w * h];
+  double *sum_p = new double[w * h];
+  Vector cx = Vector(w * angle / h);
+  Vector cy = (cx * camera.dir).normalize() * angle;
+  std::map<int, double>  table; // the radius of the circle, 1 / the number of the pixels which are covered
+  #ifndef DEBUG
+    #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
+  #endif // !DEBUG
     for (int y = 0; y < h; y++) {
-      fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num,
-              100. * y / (h - 1));
+      fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num, 100. * y / (h - 1));
       for (unsigned short x = 0, Xi[3] = {0, 0, (unsigned short)(y * y * y)}; x < w; x++) {
-        for (int sy = 0, id = (h - y - 1) * w + x; sy < 2; sy++) {
+        const int id = (h - y - 1) * w + x;
+        for (int sy = 0; sy < 2; sy++) {
           for (int sx = 0; sx < 2; sx++, colour = Vector()) {
             for (int s = 0; s < samp_num; s++, dis = -1) {
               double r1 = 2 * erand48(Xi);
@@ -259,11 +283,62 @@ int main(int argc, char *argv[]) {
             map[id] = map[id] + Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z)) * .25;
           }
         }
+        double p;
+        const int r = GetRadius(depths[id]), r_2 = r * r;
+        if (table.count(r)) {
+          p = table[r];
+        } else {
+          int cnt = 0;
+          for (int i = 1; i <= r; i++) {
+            for (int j = 1; j <= i; j++) {
+              if (i * i + j * j > r_2)
+                continue;
+              if (i == j)
+                cnt += 4;
+              else
+                cnt += 8;
+            }
+          }
+          cnt += 4 * r + 1;
+          table[r] = p = 1. / cnt;
+        }
+        for (int i = std::max(0, x - r); i <= std::min(w - 1, x + r); i++) {
+          for (int j = std::max(0, y - r); j <= std::min(h - 1, y + r); j++) {
+            if (pow(x - i, 2) + pow(y - j, 2) > r_2)
+              continue;
+            sum_p[(h - j - 1) * w + i] += p;
+          }
+        }
       }
     }
 
   fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
   for (int i = 0; i < w * h; i++)
     fprintf(file, "%d %d %d ", Gamma(map[i].x), Gamma(map[i].y), Gamma(map[i].z));
+
+  fprintf(stderr, "\n");
+  #ifndef DEBUG
+    #pragma omp parallel for schedule(dynamic, 1)
+  #endif // !DEBUG
+  for (int y = 0; y < h; y++) {
+    fprintf(stderr, "\rCreating %5.2f%%", 100. * y / (h - 1));
+    for (int x = 0; x < w; x++) {
+      const int id = (h - y - 1) * w + x;
+      const int r = GetRadius(depths[id]), r_2 = r * r;
+      const double p = table[r];
+      for (int i = std::max(0 , x - r); i <= std::min(w - 1, x + r); i++) {
+        for (int j = std::max(0, y - r), id_ = (h - j - 1) * w + i; j <= std::min(h - 1, y + r); j++) {
+          if (pow(x - i, 2) + pow(y - j, 2) > r_2)
+            continue;
+          image[id_] = image[id_] + map[id] * (p / sum_p[id_]);
+        }
+      }
+    }
+  }
+
+  // fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
+  // for (int i = 0; i < w * h; i++)
+  //   fprintf(file, "%d %d %d ", Gamma(image[i].x), Gamma(image[i].y), Gamma(image[i].z));
+
   return 0;
 }
