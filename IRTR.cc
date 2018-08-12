@@ -89,25 +89,28 @@ namespace Arguments {
   int w = 1024, h = 768;
   FILE *file = fopen("image.ppm", "w");
 
-  bool frog = false;
+  bool frog = true;
   double rho = 0.007;
   const Vector frog_c(0.7, 0.7, 0.7); // Colour of frog
 
-  double ipp = 0.05; // inch per pixel in sensor
+  double ipp = 0.07; // inch per pixel in sensor
   const Vector camera_x(1, 0, 0), camera_y(0, 1, 0); // after nomalized
-  double lensr = .001, u = 62, v = 62. / 2.5;
+  double lensr = 4, u = 80, v = u / 2.5;
   const Ray camera(Vector(50, 40, 150), Vector(0, 0, -1).normalize());
   const Vector lens_centre = camera.ori + camera.dir * v;
   const Sphere spheres[] = {
     Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
     Sphere(1e5, Vector(-1e5 + 99, 40.8, 81.6), Vector(), Vector(.25, .25, .75), Diffuse), // Rght
-    Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
+    Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Specular), // Back
     Sphere(1e5, Vector(50, 40.8, -1e5 + 170), Vector(), Vector(), Diffuse), // Frnt
     Sphere(1e5, Vector(50, 1e5, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Botm
     Sphere(1e5, Vector(50, -1e5 + 81.6, 81.6), Vector(.8, .8, .8), Vector(.75, .75, .75), Diffuse), // Top
-    Sphere(10, Vector(73, 59, 10), Vector(), Vector(1, 1, 1) * .9, Glass), // Glas
-    Sphere(10, Vector(27, 30, 37), Vector(), Vector(1, 1, 1) * .999, Specular), // Mirr
-    Sphere(10, Vector(73, 16.5, 68), Vector(), Vector(1, 1, 1) * .8, Glass), // Glas
+
+    Sphere(10, Vector(73, 59, 10), Vector(), Vector(0, .9, .9), Diffuse), // Ball
+    Sphere(10, Vector(40, 45, 22), Vector(), Vector(.4, .8, 0), Diffuse), // Ball
+    Sphere(10, Vector(27, 30, 37), Vector(), Vector(.8, .8, .1), Diffuse), // Ball
+    Sphere(10, Vector(50, 15, 50), Vector(), Vector(1, 1, 1) * 0.999, Glass), // Ball
+    Sphere(10, Vector(77, 16.5, 68), Vector(), Vector(.9, .45, .15), Diffuse), // Ball
   };
 
   void Decode(int argc, char *argv[]) {
@@ -121,6 +124,10 @@ namespace Arguments {
           file = fopen(argv[++i], "w");
         }
       }
+    }
+    if (!file) {
+      fprintf(stderr, "Failed to open image file.");
+      exit(1);
     }
   }
 };
@@ -227,7 +234,6 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num, 100. * y / (h - 1));
       for (unsigned short x = 0, Xi[3] = {0, 0, (unsigned short)(y * y * y)}; x < w; x++, colour = Vector()) {
         const int id = (h - y - 1) * w + x;
-
         const Vector sensor_point = camera.ori + camera_x * (w / 2 - x) * ipp + camera_y * (h / 2 - y) * ipp;
         const Vector focus_point = lens_centre + (lens_centre - sensor_point) * (u / v);
         for (int i = 0; i < samp_num; i++) {
