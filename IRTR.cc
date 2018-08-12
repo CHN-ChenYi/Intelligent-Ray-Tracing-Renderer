@@ -85,56 +85,68 @@ struct Sphere {
 };
 
 namespace Arguments {
-  int w = 1024, h = 768;
-  double angle = .5135;
   int samp_num = 10;
-  int dof = 10 / 2, l = 30, k = 0.7;
+  int w = 1024, h = 768;
   FILE *file = fopen("image.ppm", "w");
 
   bool frog = false;
   double rho = 0.007;
   const Vector frog_c(0.7, 0.7, 0.7); // Colour of frog
-  const Ray camera(Vector(50, 52, 295.6), Vector(0, -0.042612, -1).normalize());
-  Vector tc(0.0588, 0.361, 0.0941);
-  Vector sc = Vector(1,1,1)*.7;
+
+  double ipp = 0.05; // inch per pixel in sensor
+  const Vector camera_x(1, 0, 0), camera_y(0, 1, 0); // after nomalized
+  double lensr = .001, u = 62, v = 62. / 2;
+  const Ray camera(Vector(50, 50, 100), Vector(0, 0, -1).normalize());
+  // const Ray camera(Vector(50, 52, 295.6 - 140), Vector(0, -0.042612, -1).normalize()); // position means the top left corner
+  const Vector lens_centre = camera.ori + camera.dir * v;
+  // Vector tc(0.0588, 0.361, 0.0941);
+  // Vector sc = Vector(1,1,1)*.7;
   const Sphere spheres[] = {
+    // Sphere(5, Vector(50, 100, 50), Vector(12, 12, 12), Vector(), Diffuse), // Light
+    // Sphere(1e5, Vector(0 - 1e5, 50, 50), Vector(), Vector(.75, .75, .75), Diffuse), // Left
+    // Sphere(1e5, Vector(100 + 1e5, 50, 50), Vector(), Vector(.25, .25, .75), Diffuse), // Right
+    // Sphere(1e5, Vector(50, 100 + 1e5, 50), Vector(), Vector(.75, .75, .75), Diffuse), // Top
+    // Sphere(1e5, Vector(50, 0 - 1e5, 50), Vector(), Vector(.75, .75, .75), Diffuse), // Bottom
+    // Sphere(1e5, Vector(50, 50, 0 - 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
     // center 50 40.8 62
     // floor 0
     // back  0
-    Sphere(1e5, Vector(50, 1e5+130, 0),  Vector(1,1,1)*1.3,Vector(),Diffuse), //lite
-    Sphere(1e2, Vector(50, -1e2+2, 47),  Vector(),Vector(1,1,1)*.7,Diffuse), //grnd
+    // Sphere(1e5, Vector(50, 1e5+130, 0),  Vector(1,1,1)*1.3,Vector(),Diffuse), //lite
+    // Sphere(1e2, Vector(50, -1e2+2, 47),  Vector(),Vector(1,1,1)*.7,Diffuse), //grnd
 
-    Sphere(1e4, Vector(50, -30, 300)+Vector(-sin(50*M_PI/180),0,cos(50*M_PI/180))*1e4, Vector(), Vector(1,1,1)*.99,Specular),// mirr L
-    Sphere(1e4, Vector(50, -30, 300)+Vector(sin(50*M_PI/180),0,cos(50*M_PI/180))*1e4,  Vector(), Vector(1,1,1)*.99,Specular),// mirr R
-    Sphere(1e4, Vector(50, -30, -50)+Vector(-sin(30*M_PI/180),0,-cos(30*M_PI/180))*1e4,Vector(), Vector(1,1,1)*.99,Specular),// mirr FL
-    Sphere(1e4, Vector(50, -30, -50)+Vector(sin(30*M_PI/180),0,-cos(30*M_PI/180))*1e4, Vector(), Vector(1,1,1)*.99,Specular),// mirr
+    // Sphere(1e4, Vector(50, -30, 300)+Vector(-sin(50*M_PI/180),0,cos(50*M_PI/180))*1e4, Vector(), Vector(1,1,1)*.99,Specular),// mirr L
+    // Sphere(1e4, Vector(50, -30, 300)+Vector(sin(50*M_PI/180),0,cos(50*M_PI/180))*1e4,  Vector(), Vector(1,1,1)*.99,Specular),// mirr R
+    // Sphere(1e4, Vector(50, -30, -50)+Vector(-sin(30*M_PI/180),0,-cos(30*M_PI/180))*1e4,Vector(), Vector(1,1,1)*.99,Specular),// mirr FL
+    // Sphere(1e4, Vector(50, -30, -50)+Vector(sin(30*M_PI/180),0,-cos(30*M_PI/180))*1e4, Vector(), Vector(1,1,1)*.99,Specular),// mirr
 
 
-    Sphere(4, Vector(50,6*.6,47),   Vector(),Vector(.13,.066,.033), Diffuse),//"tree"
-    Sphere(16,Vector(50,6*2+16*.6,47),   Vector(), tc,  Diffuse),//"tree"
-    Sphere(11,Vector(50,6*2+16*.6*2+11*.6,47),   Vector(), tc,  Diffuse),//"tree"
-    Sphere(7, Vector(50,6*2+16*.6*2+11*.6*2+7*.6,47),   Vector(), tc,  Diffuse),//"tree"
+    // Sphere(4, Vector(50,6*.6,47),   Vector(),Vector(.13,.066,.033), Diffuse),//"tree"
+    // Sphere(16,Vector(50,6*2+16*.6,47),   Vector(), tc,  Diffuse),//"tree"
+    // Sphere(11,Vector(50,6*2+16*.6*2+11*.6,47),   Vector(), tc,  Diffuse),//"tree"
+    // Sphere(7, Vector(50,6*2+16*.6*2+11*.6*2+7*.6,47),   Vector(), tc,  Diffuse),//"tree"
 
-    Sphere(15.5,Vector(50,1.8+6*2+16*.6,47),   Vector(), sc,  Diffuse),//"tree"
-    Sphere(10.5,Vector(50,1.8+6*2+16*.6*2+11*.6,47),   Vector(), sc,  Diffuse),//"tree"
-    Sphere(6.5, Vector(50,1.8+6*2+16*.6*2+11*.6*2+7*.6,47),   Vector(), sc,  Diffuse),//"tree"
+    // Sphere(15.5,Vector(50,1.8+6*2+16*.6,47),   Vector(), sc,  Diffuse),//"tree"
+    // Sphere(10.5,Vector(50,1.8+6*2+16*.6*2+11*.6,47),   Vector(), sc,  Diffuse),//"tree"
+    // Sphere(6.5, Vector(50,1.8+6*2+16*.6*2+11*.6*2+7*.6,47),   Vector(), sc,  Diffuse),//"tree"
 
-    // Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
-    // Sphere(1e5, Vector(-1e5 + 99, 40.8, 81.6), Vector(), Vector(.25, .25, .75), Diffuse), // Rght
-    // Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
-    // Sphere(1e5, Vector(50, 40.8, -1e5 + 170), Vector(), Vector(), Diffuse), // Frnt
-    // Sphere(1e5, Vector(50, 1e5, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Botm
-    // Sphere(1e5, Vector(50, -1e5 + 81.6, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Top
+    Sphere(1e5, Vector(1e5 + 1, 40.8, 81.6), Vector(), Vector(.75, .25, .25), Diffuse), // Left
+    Sphere(1e5, Vector(-1e5 + 99, 40.8, 81.6), Vector(), Vector(.25, .25, .75), Diffuse), // Rght
+    Sphere(1e5, Vector(50, 40.8, 1e5), Vector(), Vector(.75, .75, .75), Diffuse), // Back
+    Sphere(1e5, Vector(50, 40.8, -1e5 + 170), Vector(), Vector(), Diffuse), // Frnt
+    Sphere(1e5, Vector(50, 1e5, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Botm
+    Sphere(1e5, Vector(50, -1e5 + 81.6, 81.6), Vector(), Vector(.75, .75, .75), Diffuse), // Top
     // Sphere(16.5, Vector(27, 16.5, 47), Vector(), Vector(1, 1, 1) * .999, Specular), // Mirr
     // Sphere(16.5, Vector(73, 16.5, 78), Vector(), Vector(1, 1, 1) * .999, Glass), // Glas
-    // Sphere(600, Vector(50, 681.6 - .27, 81.6), Vector(12, 12, 12), Vector(), Diffuse) // Lite
+    Sphere(16.5, Vector(27, 16.5, 37), Vector(), Vector(1, 1, 1) * .999, Specular), // Mirr
+    Sphere(16.5, Vector(73, 16.5, 37), Vector(), Vector(1, 1, 1) * .999, Glass), // Glas
+    Sphere(600, Vector(50, 681.6 - .27, 81.6), Vector(.001, .001, .001), Vector(), Diffuse) // Lite
   };
 
   void Decode(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
       switch (argv[i][1]) {
         case 'n': {
-          samp_num = atoi(argv[++i]) / 4;
+          samp_num = atoi(argv[++i]);
           break;
         }
         case 'o': {
@@ -155,13 +167,6 @@ inline double clamp(const double &x) {
   if (x > 1)
     return 1;
   return x;
-}
-inline int GetRadius(const double &dis) {
-  if (dis < l - dof)
-    return (dof - l - dis) * k;
-  else if (dis <= l + dof)
-    return 0;
-  return (dis - l - dof) * k;
 }
 inline int Gamma(const double &x) {
   return int(pow(clamp(x), 1 / 2.2) * 255 + .5); // Gamma Correction
@@ -203,22 +208,22 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi) {
   if (obj.t == Specular) {
     if (frog) {
       const double p_frog = f_atmo(t);
-      return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi) * p_frog + frog_c * (1 - p_frog);
+      return obj.e + col % Radiance(Ray(point, r.dir - n * (2 * (n / r.dir))), depth, Xi) * p_frog + frog_c * (1 - p_frog);
     }
-    return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi);
+    return obj.e + col % Radiance(Ray(point, r.dir - n * (2 * (n / r.dir))), depth, Xi);
   } else if (obj.t == Diffuse) {
     const double ang_ = 2 * M_PI * erand48(Xi); // random angle
     const double dis_ = erand48(Xi), dis_i_ = sqrt(dis_); // random distance
     const Vector u = ((fabs(o_n.x) > .1 ? Vector(0, 1) : Vector(1)) * o_n).normalize(); // u $\perp$ o_n
     const Vector v = o_n * u; // v $\perp$ u && v $\perp$ o_n
-    const Vector dir = (u * cos(ang_) * dis_i_ + v * sin(ang_) * dis_i_ + o_n * sqrt(1 - dis_)).normalize();
+    const Vector dir = (u * (cos(ang_) * dis_i_) + v * (sin(ang_) * dis_i_) + o_n * sqrt(1 - dis_)).normalize();
     if (frog) {
       const double p_frog = f_atmo(t);
       return obj.e + col % Radiance(Ray(point, dir), depth, Xi) * p_frog + frog_c * (1 - p_frog);
     }
     return obj.e + col % Radiance(Ray(point, dir), depth, Xi);
   } else if (obj.t == Glass) {
-    const Ray refl_ray(point, r.dir - n * 2 * (n / r.dir));
+    const Ray refl_ray(point, r.dir - n * (2 * (n / r.dir)));
     const double n_air = 1, n_obj = 1.5, n_relative = in ? n_air / n_obj : n_obj / n_air;
     const double d_d_n = r.dir / o_n;
     const double cos_2t = 1 - pow(n_relative, 2) * (1 - pow(d_d_n, 2));
@@ -229,7 +234,7 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi) {
       }
       return obj.e + col % Radiance(refl_ray, depth, Xi);
     } else {
-      const Vector t_dir = (r.dir * n_relative - n * (in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t))).normalize();
+      const Vector t_dir = (r.dir * n_relative - n * ((in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t)))).normalize();
       double a = n_obj - n_air, b = n_obj + n_air, R0 = pow(a, 2) / pow(b, 2), c = 1 - (in ? -d_d_n : t_dir / n);
       double Re = R0 + (1 - R0) * pow(c, 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
       const Vector radiance = (depth > 2 ?
@@ -249,8 +254,10 @@ int main(int argc, char *argv[]) {
   Decode(argc, argv);
   Vector colour;
   Vector *map = new Vector[w * h];
-  Vector cx = Vector(w * angle / h);
-  Vector cy = (cx * camera.dir).normalize() * angle;
+
+  // Vector cx = Vector(w * .5135 / h);
+  // Vector cy = (cx * camera.dir).normalize() * .5135;
+
   #ifndef DEBUG
     #pragma omp parallel for schedule(dynamic, 1) private(colour)
   #endif // !DEBUG
@@ -258,26 +265,38 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num, 100. * y / (h - 1));
       for (unsigned short x = 0, Xi[3] = {0, 0, (unsigned short)(y * y * y)}; x < w; x++) {
         const int id = (h - y - 1) * w + x;
-        for (int sy = 0; sy < 2; sy++) {
-          for (int sx = 0; sx < 2; sx++, colour = Vector()) {
-            for (int s = 0; s < samp_num; s++) {
-              double r1 = 2 * erand48(Xi);
-              double dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-              double r2 = 2 * erand48(Xi);
-              double dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-              Vector d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
-                        cy * (((sy + .5 + dy) / 2 + y) / h - .5) + camera.dir;
-              colour = colour + Radiance(Ray(camera.ori + d * 140, d.normalize()), 0, Xi)
-                      * (1. / samp_num);
-            }
-            map[id] = map[id] + Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z)) * .25;
-          }
+
+        const Vector sensor_point = camera.ori + camera_x * (w / 2 - x) * ipp + camera_y * (y - h / 2) * ipp;
+        const Vector focus_point = lens_centre + (lens_centre - sensor_point) * (u / v);
+        for (int i = 0; i < samp_num; i++) {
+          const double theta = 2 * M_PI * erand48(Xi), radius = lensr * erand48(Xi);
+          const Vector lens_point = lens_centre + camera_x * (cos(theta) * radius) + camera_y * (sin(theta) * radius);
+          colour = colour + Radiance(Ray(lens_point, (focus_point - lens_point).normalize()), 0, Xi) * (1. / samp_num);
         }
+        map[id] = Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z));
+
+      //   for (int sy = 0; sy < 2; sy++) {
+      //     for (int sx = 0; sx < 2; sx++, colour = Vector()) {
+      //       for (int s = 0; s < samp_num; s++) {
+      //         double r1 = 2 * erand48(Xi);
+      //         double dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+      //         double r2 = 2 * erand48(Xi);
+      //         double dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+      //         Vector d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
+      //                   cy * (((sy + .5 + dy) / 2 + y) / h - .5) + camera.dir;
+      //         colour = colour + Radiance(Ray(camera.ori + d * 140, d.normalize()), 0, Xi)
+      //                 * (1. / samp_num);
+      //       }
+      //       map[id] = map[id] + Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z)) * .25;
+      //     }
+      //   }
+
       }
     }
 
   fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
   for (int i = 0; i < w * h; i++)
+    // fprintf(file, "%lf %lf %lf\n", map[i].x, map[i].y, map[i].z);
     fprintf(file, "%d %d %d ", Gamma(map[i].x), Gamma(map[i].y), Gamma(map[i].z));
 
   return 0;
