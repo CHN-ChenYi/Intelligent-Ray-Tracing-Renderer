@@ -1,9 +1,7 @@
 //Make : g++ IRTR.cc -o IRTR -O3 -fopenmp
 
-#include <map>
 #include <cmath>
 #include <cstdio>
-#include <cassert>
 #include <cstdlib>
 #include <algorithm>
 
