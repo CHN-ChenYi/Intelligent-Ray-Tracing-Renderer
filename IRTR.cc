@@ -182,15 +182,11 @@ int Intersect(const Ray &r, double &t) {
     return -1;
   return id;
 }
-Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
+Vector Radiance(const Ray &r, int depth, unsigned short *Xi) {
   double t;
   int id = Intersect(r, t);
-  if (id < 0) {
-    dis = inf;
+  if (id < 0)
     return Vector();
-  }
-  if (dis < 0)
-    dis = t;
   const Sphere &obj = spheres[id]; // the hit object
   Vector col = obj.c;
   Vector point = r.ori + r.dir * t; // intersect point
@@ -207,9 +203,9 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
   if (obj.t == Specular) {
     if (frog) {
       const double p_frog = f_atmo(t);
-      return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi, dis) * p_frog + frog_c * (1 - p_frog);
+      return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi) * p_frog + frog_c * (1 - p_frog);
     }
-    return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi, dis);
+    return obj.e + col % Radiance(Ray(point, r.dir - n * 2 * (n / r.dir)), depth, Xi);
   } else if (obj.t == Diffuse) {
     const double ang_ = 2 * M_PI * erand48(Xi); // random angle
     const double dis_ = erand48(Xi), dis_i_ = sqrt(dis_); // random distance
@@ -218,9 +214,9 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
     const Vector dir = (u * cos(ang_) * dis_i_ + v * sin(ang_) * dis_i_ + o_n * sqrt(1 - dis_)).normalize();
     if (frog) {
       const double p_frog = f_atmo(t);
-      return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis) * p_frog + frog_c * (1 - p_frog);
+      return obj.e + col % Radiance(Ray(point, dir), depth, Xi) * p_frog + frog_c * (1 - p_frog);
     }
-    return obj.e + col % Radiance(Ray(point, dir), depth, Xi, dis);
+    return obj.e + col % Radiance(Ray(point, dir), depth, Xi);
   } else if (obj.t == Glass) {
     const Ray refl_ray(point, r.dir - n * 2 * (n / r.dir));
     const double n_air = 1, n_obj = 1.5, n_relative = in ? n_air / n_obj : n_obj / n_air;
@@ -229,17 +225,17 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
     if (cos_2t < 0) { // total internal reflection
       if (frog && in) {
         const double p_frog = f_atmo(t);
-        return obj.e + col % Radiance(refl_ray, depth, Xi, dis) * p_frog + frog_c * (1 - p_frog);
+        return obj.e + col % Radiance(refl_ray, depth, Xi) * p_frog + frog_c * (1 - p_frog);
       }
-      return obj.e + col % Radiance(refl_ray, depth, Xi, dis);
+      return obj.e + col % Radiance(refl_ray, depth, Xi);
     } else {
       const Vector t_dir = (r.dir * n_relative - n * (in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t))).normalize();
       double a = n_obj - n_air, b = n_obj + n_air, R0 = pow(a, 2) / pow(b, 2), c = 1 - (in ? -d_d_n : t_dir / n);
       double Re = R0 + (1 - R0) * pow(c, 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
       const Vector radiance = (depth > 2 ?
-                               (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi, dis) * RP
-                                                  : Radiance(Ray(point, t_dir), depth, Xi, dis) * TP)
-                               : Radiance(refl_ray, depth, Xi, dis) * Re + Radiance(Ray(point, t_dir), depth, Xi, dis) * Tr);
+                               (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi) * RP
+                                                  : Radiance(Ray(point, t_dir), depth, Xi) * TP)
+                               : Radiance(refl_ray, depth, Xi) * Re + Radiance(Ray(point, t_dir), depth, Xi) * Tr);
       if (frog && in) {
         const double p_frog = f_atmo(t);
         return obj.e + col % radiance * p_frog + frog_c * (1 - p_frog);
@@ -251,17 +247,12 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi, double &dis) {
 
 int main(int argc, char *argv[]) {
   Decode(argc, argv);
-  double dis;
   Vector colour;
   Vector *map = new Vector[w * h];
-  double *depths = new double[w * h];
-  Vector *image = new Vector[w * h];
-  double *sum_p = new double[w * h];
   Vector cx = Vector(w * angle / h);
   Vector cy = (cx * camera.dir).normalize() * angle;
-  std::map<int, double>  table; // the radius of the circle, 1 / the number of the pixels which are covered
   #ifndef DEBUG
-    #pragma omp parallel for schedule(dynamic, 1) private(colour, dis)
+    #pragma omp parallel for schedule(dynamic, 1) private(colour)
   #endif // !DEBUG
     for (int y = 0; y < h; y++) {
       fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samp_num, 100. * y / (h - 1));
@@ -269,44 +260,17 @@ int main(int argc, char *argv[]) {
         const int id = (h - y - 1) * w + x;
         for (int sy = 0; sy < 2; sy++) {
           for (int sx = 0; sx < 2; sx++, colour = Vector()) {
-            for (int s = 0; s < samp_num; s++, dis = -1) {
+            for (int s = 0; s < samp_num; s++) {
               double r1 = 2 * erand48(Xi);
               double dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
               double r2 = 2 * erand48(Xi);
               double dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
               Vector d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
                         cy * (((sy + .5 + dy) / 2 + y) / h - .5) + camera.dir;
-              colour = colour + Radiance(Ray(camera.ori + d * 140, d.normalize()), 0, Xi, dis)
+              colour = colour + Radiance(Ray(camera.ori + d * 140, d.normalize()), 0, Xi)
                       * (1. / samp_num);
-              depths[id] += dis * (1. / samp_num);
             }
             map[id] = map[id] + Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z)) * .25;
-          }
-        }
-        double p;
-        const int r = GetRadius(depths[id]), r_2 = r * r;
-        if (table.count(r)) {
-          p = table[r];
-        } else {
-          int cnt = 0;
-          for (int i = 1; i <= r; i++) {
-            for (int j = 1; j <= i; j++) {
-              if (i * i + j * j > r_2)
-                continue;
-              if (i == j)
-                cnt += 4;
-              else
-                cnt += 8;
-            }
-          }
-          cnt += 4 * r + 1;
-          table[r] = p = 1. / cnt;
-        }
-        for (int i = std::max(0, x - r); i <= std::min(w - 1, x + r); i++) {
-          for (int j = std::max(0, y - r); j <= std::min(h - 1, y + r); j++) {
-            if (pow(x - i, 2) + pow(y - j, 2) > r_2)
-              continue;
-            sum_p[(h - j - 1) * w + i] += p;
           }
         }
       }
@@ -315,30 +279,6 @@ int main(int argc, char *argv[]) {
   fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
   for (int i = 0; i < w * h; i++)
     fprintf(file, "%d %d %d ", Gamma(map[i].x), Gamma(map[i].y), Gamma(map[i].z));
-
-  fprintf(stderr, "\n");
-  #ifndef DEBUG
-    #pragma omp parallel for schedule(dynamic, 1)
-  #endif // !DEBUG
-  for (int y = 0; y < h; y++) {
-    fprintf(stderr, "\rCreating %5.2f%%", 100. * y / (h - 1));
-    for (int x = 0; x < w; x++) {
-      const int id = (h - y - 1) * w + x;
-      const int r = GetRadius(depths[id]), r_2 = r * r;
-      const double p = table[r];
-      for (int i = std::max(0 , x - r); i <= std::min(w - 1, x + r); i++) {
-        for (int j = std::max(0, y - r), id_ = (h - j - 1) * w + i; j <= std::min(h - 1, y + r); j++) {
-          if (pow(x - i, 2) + pow(y - j, 2) > r_2)
-            continue;
-          image[id_] = image[id_] + map[id] * (p / sum_p[id_]);
-        }
-      }
-    }
-  }
-
-  // fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
-  // for (int i = 0; i < w * h; i++)
-  //   fprintf(file, "%d %d %d ", Gamma(image[i].x), Gamma(image[i].y), Gamma(image[i].z));
 
   return 0;
 }
