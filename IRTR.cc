@@ -199,17 +199,17 @@ Vector Radiance(const Ray &r, int depth, unsigned short *Xi) {
     const Ray refl_ray(point, r.dir - n * (2 * (n / r.dir)));
     const double n_air = 1, n_obj = 1.5, n_relative = in ? n_air / n_obj : n_obj / n_air;
     const double d_d_n = r.dir / o_n;
-    const double cos_2t = 1 - pow(n_relative, 2) * (1 - pow(d_d_n, 2));
-    if (cos_2t < 0) { // total internal reflection
+    const double cosr_2 = 1 - pow(n_relative, 2) * (1 - pow(d_d_n, 2));
+    if (cosr_2 < 0) { // total internal reflection
       if (frog && in) {
         const double p_frog = f_atmo(t);
         return obj.e + col % Radiance(refl_ray, depth, Xi) * p_frog + frog_c * (1 - p_frog);
       }
       return obj.e + col % Radiance(refl_ray, depth, Xi);
     } else {
-      const Vector t_dir = (r.dir * n_relative - n * ((in ? 1 : -1) * (d_d_n * n_relative + sqrt(cos_2t)))).normalize();
-      double a = n_obj - n_air, b = n_obj + n_air, R0 = pow(a, 2) / pow(b, 2), c = 1 - (in ? -d_d_n : t_dir / n);
-      double Re = R0 + (1 - R0) * pow(c, 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
+      const Vector t_dir = (r.dir * n_relative - n * ((in ? 1 : -1) * (d_d_n * n_relative + sqrt(cosr_2)))).normalize();
+      double a = n_relative - 1, b = n_relative + 1, F_0 = pow(a, 2) / pow(b, 2);
+      double Re = F_0 + (1 - F_0) * pow(1 - (in ? -d_d_n : t_dir / n), 5), Tr = 1 - Re, P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P); // Fresnel Reflectance
       const Vector radiance = (depth > 2 ?
                                (erand48(Xi) < P ? Radiance(refl_ray, depth, Xi) * RP
                                                   : Radiance(Ray(point, t_dir), depth, Xi) * TP)
@@ -242,6 +242,7 @@ int main(int argc, char *argv[]) {
         map[id] = Vector(clamp(colour.x), clamp(colour.y), clamp(colour.z));
       }
     }
+  fprintf(stderr, "\n");
   fprintf(file, "P3\n%d %d\n%d\n", w, h, 255);
   for (int i = 0; i < w * h; i++)
     fprintf(file, "%d %d %d ", Gamma(map[i].x), Gamma(map[i].y), Gamma(map[i].z));
