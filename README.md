@@ -1,5 +1,5 @@
 # Intelligent-Ray-Tracing-Renderer
-A project of Ying Cai Ji Hua (Based on smallpt)
+A project of Ying Cai Ji Hua
 
 
 
